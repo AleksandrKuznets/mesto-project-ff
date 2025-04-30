@@ -2,11 +2,17 @@ import "../pages/index.css";
 import { initialCards } from "./cards";
 import avatar from "../images/avatar.jpg";
 import logoImage from "../images/logo.svg";
-import { createCard, callbacks } from "../components/card.js";
-import { openPopup, closePopup } from "../components/modal.js";
+import { createCard, likeCard, deleteCard } from "../components/card.js";
+import {
+  openPopup,
+  closePopup,
+  closePopupOnOverlayClick,
+} from "../components/modal.js";
 
 // --- получение нужных эл-тов ---
 const cardList = document.querySelector(".places__list");
+const ImagePopup = document.querySelector(".popup_type_image");
+const cardTemplate = document.querySelector("#card-template").content;
 
 // --- установка фото Жака-Ив Кусто и логотипа ---
 const logoElement = document.querySelector(".header__logo");
@@ -14,9 +20,16 @@ logoElement.src = logoImage;
 const avatarElement = document.querySelector(".profile__image");
 avatarElement.setAttribute("style", `background-image: url(${avatar})`);
 
+// --- колбэки(удаление карточки, лайк карточки и увеличение картинки) ---
+const callbacks = {
+  deleteCard,
+  likeCard,
+  increaseImage,
+};
+
 // --- функция добавления карточки ---
 function addCard(item, method = "append") {
-  const cardElement = createCard(item, callbacks);
+  const cardElement = createCard(item, callbacks, cardTemplate);
   cardList[method](cardElement);
 }
 
@@ -24,6 +37,15 @@ function addCard(item, method = "append") {
 initialCards.forEach((element) => {
   addCard(element);
 });
+
+// --- открытие картинки карточки в развёрнутом виде ---
+function increaseImage(src, textContent) {
+  const srcPopup = ImagePopup.querySelector(".popup__image");
+  const textPopup = ImagePopup.querySelector(".popup__caption");
+  srcPopup.src = src;
+  textPopup.textContent = textContent;
+  openPopup(ImagePopup);
+}
 
 // --- глобальные переменные для открытия и закрытия popup'ов (3 пункт) ---
 const closeButtons = document.querySelectorAll(".popup__close");
@@ -51,9 +73,7 @@ closeButtons.forEach((button) => {
 
 popups.forEach((popup) => {
   popup.addEventListener("click", (event) => {
-    if (event.target === popup) {
-      closePopup(popup);
-    }
+    closePopupOnOverlayClick(event);
   });
 });
 
@@ -73,18 +93,16 @@ function fillProfileForm() {
 }
 
 // --- Обработчик «отправки» формы ---
-function handleFormSubmit(evt) {
+function handleProfileFormSubmit(evt) {
   evt.preventDefault();
 
   profileName.textContent = nameInput.value;
   profileJob.textContent = jobInput.value;
 
   closePopup(profilePopup);
-
-  evt.target.reset();
 }
 
-profilePopup.addEventListener("submit", handleFormSubmit);
+profilePopup.addEventListener("submit", handleProfileFormSubmit);
 
 // --- добавление новой карточки (пункт 6) ---
 const cardNameInput = document.querySelector(".popup__input_type_card-name");

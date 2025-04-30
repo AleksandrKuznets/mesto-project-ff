@@ -1,18 +1,24 @@
-export function openPopup(popup) {
-  popup.classList.add("popup_is-opened");
-
-  // --- Функция закрытия Popup через esc ---
-  function esc(event) {
-    if (event.key === "Escape") {
-      closePopup(popup);
-      document.removeEventListener("keydown", esc);
-    }
+export function closePopupOnOverlayClick(event) {
+  if (event.target === event.currentTarget) {
+    closePopup(event.currentTarget);
   }
-
-  document.addEventListener("keydown", esc);
 }
 
-// --- функция закрытия Popup ---
+export function closePopupByEsc(event) {
+  if (event.key === "Escape") {
+    const openedPopup = document.querySelector(".popup_is-opened");
+    if (openedPopup) {
+      closePopup(openedPopup);
+    }
+  }
+}
+
+export function openPopup(popup) {
+  popup.classList.add("popup_is-opened");
+  document.addEventListener("keydown", closePopupByEsc);
+}
+
 export function closePopup(popup) {
   popup.classList.remove("popup_is-opened");
+  document.removeEventListener("keydown", closePopupByEsc);
 }
