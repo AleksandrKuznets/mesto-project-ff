@@ -1,13 +1,9 @@
 import "../pages/index.css";
-import { initialCards } from "./cards";
-import avatar from "../images/avatar.jpg";
 import logoImage from "../images/logo.svg";
 import { createCard, likeCard, deleteCard } from "../components/card.js";
-import {
-  openPopup,
-  closePopup,
-  closePopupOnOverlayClick,
-} from "../components/modal.js";
+import { openPopup,closePopup,closePopupOnOverlayClick } from "../components/modal.js";
+import { enableValidation } from "../components/validation.js";
+import { getUserInfo, getInitialCards, updateUserInfo, addNewCard, deleteCardFromServer, updateAvatar } from "../components/api.js";
 
 // --- получение нужных эл-тов ---
 const cardList = document.querySelector(".places__list");
@@ -17,26 +13,25 @@ const cardTemplate = document.querySelector("#card-template").content;
 // --- установка фото Жака-Ив Кусто и логотипа ---
 const logoElement = document.querySelector(".header__logo");
 logoElement.src = logoImage;
-const avatarElement = document.querySelector(".profile__image");
-avatarElement.setAttribute("style", `background-image: url(${avatar})`);
+
+const deletePopup = document.querySelector(".popup_type_delete-card");
 
 // --- колбэки(удаление карточки, лайк карточки и увеличение картинки) ---
 const callbacks = {
-  deleteCard,
+  deleteCard: (cardId, cardElement) => {
+    cardIdToDelete = cardId;
+    cardElementToDelete = cardElement;
+    openPopup(deletePopup);
+  },
   likeCard,
   increaseImage,
 };
 
 // --- функция добавления карточки ---
-function addCard(item, method = "append") {
-  const cardElement = createCard(item, callbacks, cardTemplate);
+function addCard(item, method = "append", userId) {
+  const cardElement = createCard(item, callbacks, cardTemplate, userId);
   cardList[method](cardElement);
 }
-
-// --- вывод карточек на страницу ---
-initialCards.forEach((element) => {
-  addCard(element);
-});
 
 // --- открытие картинки карточки в развёрнутом виде ---
 function increaseImage(src, textContent) {
@@ -78,7 +73,7 @@ popups.forEach((popup) => {
 });
 
 // --- изменения данных в форме о редактировании профиля (4 пункт) ---
-// --- поля формы в DOM ---
+// --- поля формы изменения профиля ---
 const nameInput = document.querySelector(".popup__input_type_name");
 const jobInput = document.querySelector(".popup__input_type_description");
 
@@ -92,14 +87,30 @@ function fillProfileForm() {
   jobInput.value = profileJob.textContent;
 }
 
-// --- Обработчик «отправки» формы ---
+// --- функция обновления данных о пользователе(используется функция "updateUserInfo") ---
 function handleProfileFormSubmit(evt) {
   evt.preventDefault();
 
-  profileName.textContent = nameInput.value;
-  profileJob.textContent = jobInput.value;
+  const submitButton = profilePopup.querySelector('button[type="submit"]');
+  const originalText = submitButton.textContent;
 
-  closePopup(profilePopup);
+  submitButton.textContent = "Сохранение...";
+
+  const newName = nameInput.value;
+  const newAbout = jobInput.value;
+
+  updateUserInfo(newName, newAbout)
+    .then((data) => {
+      profileName.textContent = data.name;
+      profileJob.textContent = data.about;
+      closePopup(profilePopup);
+    })
+    .catch((err) => {
+      console.error("Ошибка при обновлении профиля:", err);
+    })
+    .finally(() => {
+      submitButton.textContent = originalText;
+    });
 }
 
 profilePopup.addEventListener("submit", handleProfileFormSubmit);
@@ -111,14 +122,152 @@ const urlCardInput = document.querySelector(".popup__input_type_url");
 function handleAddCard(evt) {
   evt.preventDefault();
 
-  const newCard = {
+  const submitButton = newCardPopup.querySelector('button[type="submit"]');
+  const originalText = submitButton.textContent;
+
+  submitButton.textContent = "Сохранение...";
+
+  const cardData = {
     name: cardNameInput.value,
     link: urlCardInput.value,
   };
 
-  addCard(newCard, "prepend");
-  closePopup(newCardPopup);
-  evt.target.reset();
+  addNewCard(cardData)
+    .then((newCardFromServer) => {
+      addCard(newCardFromServer, "prepend", currentUserId);
+      closePopup(newCardPopup);
+      evt.target.reset();
+    })
+    .catch((err) => {
+      console.error("Ошибка при добавлении карточки:", err);
+    })
+    .finally(() => {
+      submitButton.textContent = originalText;
+    });
 }
 
 newCardPopup.addEventListener("submit", handleAddCard);
+
+//   6 спринт   //
+
+// --- объект(настройки для валидации) ---
+export const validationConfig = {
+  formSelector: ".popup__form",
+  inputSelector: ".popup__input",
+  submitButtonSelector: ".popup__button",
+  inactiveButtonClass: "popup__button-disabled",
+  inputErrorClass: "popup__input-invalid",
+  errorClass: "popup__input-error-visible",
+};
+
+// --- включение валидации ---
+enableValidation(validationConfig);
+
+// --- вывод в консоль инеформации о пользователе (просто для себя) НЕОБЯЗАТЕЛЬНО ---
+getUserInfo()
+  .then((data) => {
+    console.log("Данные пользователя с сервера:", data);
+  })
+  .catch((err) => {
+    console.error("Ошибка при получении данных:", err);
+  });
+
+// --- вывод в консоль карточки (просто для себя) НЕОБЯЗАТЕЛЬНО --- 
+getInitialCards()
+  .then((cards) => {
+    console.log("Карточки с сервера:", cards);
+  })
+  .catch((err) => {
+    console.error("Ошибка при получении карточек:", err);
+  });
+
+let currentUserId = null;
+
+// --- загрузка данных пользователя и карточек одновременно ---
+Promise.all([getUserInfo(), getInitialCards()])
+  .then(([userData, cards]) => {
+    currentUserId = userData._id;
+
+    const profileName = document.querySelector(".profile__title");
+    const profileAbout = document.querySelector(".profile__description");
+    const profileImage = document.querySelector(".profile__image");
+
+    profileName.textContent = userData.name;
+    profileAbout.textContent = userData.about;
+    profileImage.style.backgroundImage = `url(${userData.avatar})`;
+
+    cards.forEach((cardData) => {
+      const cardElement = createCard(
+        cardData,
+        callbacks,
+        cardTemplate,
+        currentUserId
+      );
+      cardList.append(cardElement);
+    });
+  })
+  .catch((err) => {
+    console.error("Ошибка при загрузке данных:", err);
+  });
+
+// --- удаление карточки с сервера ---
+let cardIdToDelete = null;
+let cardElementToDelete = null;
+const confirmDeleteButton = deletePopup.querySelector(".button__card-delete");
+
+confirmDeleteButton.addEventListener("click", (event) => {
+  event.preventDefault();
+
+  const originalText = confirmDeleteButton.textContent;
+  confirmDeleteButton.textContent = "Удаление...";
+  confirmDeleteButton.disabled = true;
+
+  deleteCardFromServer(cardIdToDelete)
+    .then(() => {
+      cardElementToDelete.remove();
+      closePopup(deletePopup);
+      cardIdToDelete = null;
+      cardElementToDelete = null;
+    })
+    .catch((err) => {
+      console.error("Ошибка при удалении карточки:", err);
+    })
+    .finally(() => {
+      confirmDeleteButton.textContent = originalText;
+      confirmDeleteButton.disabled = false;
+    });
+});
+
+// --- смена аватара пользователя ---
+const avatarPopup = document.querySelector(".popup_type_change-avatar");
+const avatarForm = avatarPopup.querySelector('form[name="change-avatar"]');
+const profileAvatar = document.querySelector(".profile__image");
+
+// --- открытие попапа по клику на див с аватаром ---
+profileAvatar.addEventListener("click", () => {
+  openPopup(avatarPopup);
+});
+
+avatarForm.addEventListener("submit", (evt) => {
+  evt.preventDefault();
+
+  const submitButton = avatarForm.querySelector('button[type="submit"]');
+  const originalText = submitButton.textContent;
+
+  submitButton.textContent = "Сохранение...";
+
+  const link = avatarForm.link.value.trim();
+
+  updateAvatar(link)
+    .then((userData) => {
+      profileAvatar.style.backgroundImage = `url(${userData.avatar})`;
+      closePopup(avatarPopup);
+      avatarForm.reset();
+    })
+    .catch((err) => {
+      console.error("Ошибка обновления аватара:", err);
+    })
+    .finally(() => {
+      submitButton.textContent = originalText;
+    });
+});

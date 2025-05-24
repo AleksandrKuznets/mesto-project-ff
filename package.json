@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "webpack serve --mode development",
-    "build": "webpack --mode production"
+    "build": "webpack --mode production",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist --repo https://github.com/AleksandrKuznets/mesto-project-ff.git"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +21,7 @@
     "css-loader": "^7.1.2",
     "cssnano": "^7.0.6",
     "file-loader": "^6.2.0",
+    "gh-pages": "^6.3.0",
     "html-loader": "^5.1.0",
     "html-webpack-plugin": "^5.6.3",
     "mini-css-extract-plugin": "^2.9.2",
