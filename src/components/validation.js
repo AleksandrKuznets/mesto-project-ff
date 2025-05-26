@@ -1,6 +1,3 @@
-// --- регулярное выражение для проверки валидности ---
-const textRegex = /^[a-zа-яё\s-]+$/i;
-
 // --- показать ошибку ---
 function showInputError(input, errorMessage, config) {
   const errorElement = input.nextElementSibling;
@@ -20,16 +17,14 @@ function hideInputError(input, config) {
 // --- проверка поля на валидность ---
 function checkInputValidity(input, config) {
   if (!input.validity.valid) {
-    showInputError(input, input.validationMessage, config);
-    return false;
-  }
+    const customMessage = input.getAttribute("data-error-message");
 
-  if (input.dataset.validate === "text" && !textRegex.test(input.value)) {
-    showInputError(
-      input,
-      "Разрешены только латинские, кириллические буквы, знаки дефиса и пробелы",
-      config
-    );
+    if (input.validity.patternMismatch) {
+      showInputError(input, customMessage, config);
+    } else {
+      showInputError(input, input.validationMessage, config);
+    }
+
     return false;
   }
 
@@ -40,16 +35,13 @@ function checkInputValidity(input, config) {
 // --- управление кнопкой ---
 function toggleButtonState(inputs, button, config) {
   const isValid = inputs.every((input) => {
-    if (input.type === "url") return input.validity.valid;
-    return (
-      input.validity.valid &&
-      (!input.dataset.validate || textRegex.test(input.value))
-    );
+    return input.validity.valid && !input.validity.patternMismatch;
   });
 
   button.disabled = !isValid;
   button.classList.toggle(config.inactiveButtonClass, !isValid);
 }
+
 
 // --- навесить слушатели на инпуты в форме и сменить отображение кнопки ---
 function setEventListeners(form, config) {

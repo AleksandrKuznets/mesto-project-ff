@@ -1,11 +1,4 @@
 import { addLikeToServer, removeLikeFromServer } from "./api";
-import { openPopup } from "./modal";
-
-export function deleteCard(cardId, cardElement) {
-  cardIdToDelete = cardId;
-  cardElementToDelete = cardElement;
-  openPopup(deletePopup)
-}
 
 export function likeCard(cardId, likeButton, likeCounter) {
   const liked = likeButton.classList.contains("card__like-button_is-active");
@@ -14,8 +7,7 @@ export function likeCard(cardId, likeButton, likeCounter) {
 
   if (liked) {
     apiCall = removeLikeFromServer;
-  } 
-  else {
+  } else {
     apiCall = addLikeToServer;
   }
 
@@ -46,7 +38,7 @@ export function createCard(cardData, callbacks, cardTemplate, userId) {
   likeCounter.textContent = cardData.likes.length;
 
   // --- если текущий пользователь есть в массиве лайков — активируем лайк ---
-  if (cardData.likes.some(user => user._id === userId)) {
+  if (cardData.likes.some((user) => user._id === userId)) {
     likeButton.classList.add("card__like-button_is-active");
   }
 
